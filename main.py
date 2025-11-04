@@ -1,6 +1,6 @@
-# Minecraft Server Management Tool v0.2.1-beta
+# Minecraft Server Management Tool v0.2.2-beta
 # Professional Minecraft server management utility with comprehensive features
-# Built: 2025/11/4
+# Built: 2025/11/5
 
 import customtkinter as ctk
 import requests
@@ -459,21 +459,69 @@ def run_server(server_path):
         raise FileNotFoundError("找不到 start.bat 啟動檔！")
 
 def create_backup(server_path, progress_callback):
+    """
+    Creates a zip archive of a Minecraft server directory.
+
+    This function intelligently excludes the 'backups' directory itself from the
+    archive to prevent a recursive backup issue where each new archive would
+    contain all previous ones. It uses the zipfile module for granular control
+    over the archive's contents.
+
+    Args:
+        server_path (str): The absolute path to the server's root directory.
+        progress_callback (callable): A function to be called to report progress
+            updates to the UI. It should accept a string message and a float
+            value between 0.0 and 1.0.
+
+    Returns:
+        str: The filename of the successfully created backup archive.
+
+    Raises:
+        Exception: Propagates any exceptions that occur during file I/O or
+            the zipping process, allowing the caller to handle them.
+    """
     try:
-        progress_callback("開始備份...", 0.1)
+        progress_callback("初始化打包過程...", 0.1)
+
+        # Define the target directory for storing backups.
         backup_dir = os.path.join(server_path, 'backups')
         os.makedirs(backup_dir, exist_ok=True)
+
+        # Generate a timestamped, unique filename for the new archive.
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         backup_filename = f"backup-{timestamp}"
-        progress_callback("正在壓縮檔案...", 0.3)
-        shutil.make_archive(
-            base_name=os.path.join(backup_dir, backup_filename),
-            format='zip',
-            root_dir=server_path,
-        )
-        progress_callback("備份完成！", 1)
+        backup_zip_path = os.path.join(backup_dir, f"{backup_filename}.zip")
+
+        progress_callback("掃描和打包檔案中...", 0.3)
+
+        # Use the zipfile module for direct control over archive contents.
+        # This is necessary to implement the exclusion logic for the backup directory.
+        with zipfile.ZipFile(backup_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Walk through the entire directory tree of the server.
+            for root, dirs, files in os.walk(server_path):
+
+                # --- THE CRITICAL FIX ---
+                # By modifying the 'dirs' list in-place, we instruct os.walk()
+                # to skip traversing into the 'backups' directory. This elegantly
+                # prevents the recursive backup issue.
+                if 'backups' in dirs:
+                    dirs.remove('backups')
+
+                # Add each file to the zip archive.
+                for file in files:
+                    file_path = os.path.join(root, file)
+
+                    # Create a relative path for the file within the archive.
+                    # This prevents the zip file from storing the full absolute path
+                    # (e.g., "C:/Users/...") and maintains a clean server structure.
+                    archive_name = os.path.relpath(file_path, server_path)
+                    zipf.write(file_path, archive_name)
+
+        progress_callback("備份完成!", 1.0)
         return f"{backup_filename}.zip"
+
     except Exception as e:
+        # Propagate the exception to the caller (e.g., the GUI thread) to handle.
         raise e
 
 # --- Asynchronous Task Management ---
@@ -923,7 +971,6 @@ class AboutView(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, padx=40, pady=(20, 10), sticky="ew")
         header_frame.grid_columnconfigure(1, weight=1)
 
-        # Simple emoji logo
         logo_image = ctk.CTkImage(Image.open(ICON_PATH), size=(48, 48))
         logo_label = ctk.CTkLabel(header_frame, image=logo_image, text="")
         logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 20))
@@ -933,14 +980,15 @@ class AboutView(ctk.CTkFrame):
                                font=ctk.CTkFont(size=28, weight="bold"), anchor="w")
         app_title.grid(row=0, column=1, sticky="ew")
         
-        version_label = ctk.CTkLabel(header_frame, text="版本: 0.2.1-beta (構建於2025/11/4)", 
+        # Updated version and build date
+        version_label = ctk.CTkLabel(header_frame, text="版本: 0.2.2-beta (hotfix，構建於2025/11/5)", 
                                    font=ctk.CTkFont(size=14), anchor="w", text_color="gray")
         version_label.grid(row=1, column=1, sticky="ew")
 
         # --- Developer Info ---
         dev_frame = ctk.CTkFrame(self)
         dev_frame.grid(row=1, column=0, padx=40, pady=10, sticky="ew")
-        dev_frame.grid_columnconfigure(1, weight=1) # Allow link labels to expand to the right
+        dev_frame.grid_columnconfigure(1, weight=1)
 
         dev_title = ctk.CTkLabel(dev_frame, text="開發者資訊", 
                                font=ctk.CTkFont(size=18, weight="bold"))
@@ -962,7 +1010,7 @@ class AboutView(ctk.CTkFrame):
         # --- Description ---
         desc_frame = ctk.CTkFrame(self)
         desc_frame.grid(row=2, column=0, padx=40, pady=10, sticky="nsew")
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(2, weight=1) # Allow this frame to expand
         desc_frame.grid_columnconfigure(0, weight=1)
 
         desc_title = ctk.CTkLabel(desc_frame, text="應用程式說明", 
@@ -984,6 +1032,25 @@ class AboutView(ctk.CTkFrame):
         desc_text.insert("1.0", desc_text_content)
         desc_text.configure(state="disabled")
 
+        # --- NEW: Changelog ---
+        changelog_frame = ctk.CTkFrame(self)
+        changelog_frame.grid(row=3, column=0, padx=40, pady=10, sticky="ew")
+        changelog_frame.grid_columnconfigure(0, weight=1)
+
+        changelog_title = ctk.CTkLabel(changelog_frame, text="更新日誌 (Changelog)", 
+                                     font=ctk.CTkFont(size=18, weight="bold"))
+        changelog_title.pack(padx=20, pady=(10, 5), anchor="w")
+
+        changelog_content = (
+            "v0.2.2-beta (hotfix) - 2025/11/5\n"
+            "-------------------------------------\n"
+            "• [修正] 修正了一個備份機制的嚴重錯誤。該錯誤會導致備份功能將先前的備份檔重複打包，造成備份檔案大小無限增長的問題。"
+        )
+        changelog_text = ctk.CTkTextbox(changelog_frame, wrap="word", height=80, fg_color="transparent")
+        changelog_text.pack(padx=20, pady=(0, 15), fill="x", expand=True)
+        changelog_text.insert("1.0", changelog_content)
+        changelog_text.configure(state="disabled")
+
     def handle_logo_click(self, event):
         self.logo_clicks += 1
         if self.logo_clicks >= 7:
@@ -996,7 +1063,7 @@ class AboutView(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Minecraft Server Management Tool v0.2.1-beta")
+        self.title("Minecraft Server Management Tool v0.2.2-beta")
         self.geometry("900x700")  # Expanded to accommodate new about section
         
         ctk.set_appearance_mode("System")

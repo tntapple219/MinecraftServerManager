@@ -17,7 +17,7 @@ nuitka_options = [
     "--windows-icon-from-ico=app.ico",
     "--company-name=TNTAPPLE",
     "--product-name=TNTAPPLE",
-    "--product-version=0.2.1.0",
+    "--product-version=0.2.2.0",
     
     # Output directory setting
     "--output-dir=build",
