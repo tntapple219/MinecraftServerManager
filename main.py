@@ -1,4 +1,4 @@
-# Minecraft Server Management Tool v0.2.2-beta
+# Minecraft Server Management Tool v0.3.0-beta
 # Professional Minecraft server management utility with comprehensive features
 # Built: 2025/11/5
 
@@ -37,6 +37,8 @@ DEFAULT_SETTINGS = {
     'scan_path': os.path.join(os.path.expanduser('~'), 'Desktop'),
     'min_ram_mb': 1024,
     'max_ram_mb': 2048,
+    'theme': 'blue',  
+    'appearance_mode': 'system', 
     'use_server_gui': False,
     'auto_download_java': False,
     'auto_accept_eula': True,
@@ -814,29 +816,67 @@ class SettingsView(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs, fg_color="transparent")
         self.grid_columnconfigure(1, weight=1)
+        self.initial_theme = "" # 用來追蹤主題是否變更
+
+        # --- 外觀設定 ---
+        appearance_title = ctk.CTkLabel(self, text="外觀設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold"))
+        appearance_title.grid(row=0, column=0, columnspan=3, padx=20, pady=(10, 5), sticky="w")
+        
+        appearance_frame = ctk.CTkFrame(self, fg_color="transparent")
+        appearance_frame.grid(row=1, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
+        appearance_frame.grid_columnconfigure((1, 3), weight=1)
+
+        # 顏色模式選擇
+        ctk.CTkLabel(appearance_frame, text="顏色模式:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
+        self.mode_var = ctk.StringVar()
+        self.mode_menu = ctk.CTkOptionMenu(appearance_frame, variable=self.mode_var,
+                                           values=["淺色", "深色", "系統"],
+                                           command=self.change_mode, # 顏色模式可以即時改變
+                                           font=ctk.CTkFont(family="Microsoft JhengHei"))
+        self.mode_menu.grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
+
+        # 主題選擇
+        THEMES_DIR = os.path.join(BUNDLE_DIR, 'themes')
+        self.themes = []
+        if os.path.isdir(THEMES_DIR):
+            self.themes = sorted([f.replace('.json', '') for f in os.listdir(THEMES_DIR) if f.endswith('.json')])
+        
+        if not self.themes:
+            self.themes = ["(找不到主題)"]
+
+        ctk.CTkLabel(appearance_frame, text="應用程式主題:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
+        self.theme_var = ctk.StringVar()
+        self.theme_menu = ctk.CTkOptionMenu(appearance_frame, variable=self.theme_var,
+                                            values=self.themes,
+                                            # 移除 command，因為無法即時生效
+                                            font=ctk.CTkFont(family="Microsoft JhengHei"))
+        self.theme_menu.grid(row=0, column=3, pady=5, sticky="w")
+        if self.themes == "(找不到主題)": self.theme_menu.configure(state="disabled")
+
+        # --- 伺服器啟動設定 ---
+        ctk.CTkLabel(self, text="伺服器啟動設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=2, column=0, columnspan=3, padx=20, pady=(20, 5), sticky="w")
         
         self.total_ram_mb = round(psutil.virtual_memory().total / (1024**2))
         
-        ctk.CTkLabel(self, text="最大記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=20, pady=10, sticky="w")
-        # 计算合适的最大内存，向下取整到256的倍数
+        ctk.CTkLabel(self, text="最大記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=3, column=0, padx=20, pady=10, sticky="w")
         max_ram_rounded = (self.total_ram_mb // 256) * 256
         self.max_ram_slider = ctk.CTkSlider(self, from_=512, to=max_ram_rounded, number_of_steps=(max_ram_rounded - 512) // 256, command=self.update_ram_labels)
-        self.max_ram_slider.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
-        self.max_ram_label = ctk.CTkLabel(self, text="2048 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.max_ram_label.grid(row=0, column=2, padx=10)
+        self.max_ram_slider.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
+        self.max_ram_label = ctk.CTkLabel(self, text="2048 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.max_ram_label.grid(row=3, column=2, padx=10)
 
-        ctk.CTkLabel(self, text="最小記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=1, column=0, padx=20, pady=10, sticky="w")
+        ctk.CTkLabel(self, text="最小記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=4, column=0, padx=20, pady=10, sticky="w")
         self.min_ram_slider = ctk.CTkSlider(self, from_=512, to=2048, number_of_steps=(2048 - 512) // 256, command=self.update_ram_labels)
-        self.min_ram_slider.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        self.min_ram_label = ctk.CTkLabel(self, text="1024 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.min_ram_label.grid(row=1, column=2, padx=10)
+        self.min_ram_slider.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
+        self.min_ram_label = ctk.CTkLabel(self, text="1024 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.min_ram_label.grid(row=4, column=2, padx=10)
         
         self.java_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(self, text="自動下載並管理 Java 版本", variable=self.java_switch_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=2, column=0, columnspan=2, padx=20, pady=15, sticky="w")
+                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=5, column=0, columnspan=2, padx=20, pady=15, sticky="w")
         self.gui_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(self, text="啟動伺服器時顯示圖形化介面 (GUI)", variable=self.gui_switch_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=3, column=0, columnspan=2, padx=20, pady=15, sticky="w")
+                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=6, column=0, columnspan=2, padx=20, pady=15, sticky="w")
 
-        eula_frame = ctk.CTkFrame(self, fg_color="transparent"); eula_frame.grid(row=4, column=0, columnspan=2, padx=20, pady=15, sticky="w")
+        eula_frame = ctk.CTkFrame(self, fg_color="transparent"); eula_frame.grid(row=7, column=0, columnspan=2, padx=20, pady=15, sticky="w")
         self.eula_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(eula_frame, text="自動同意 Mojang EULA", variable=self.eula_switch_var,
                      font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left")
@@ -846,12 +886,10 @@ class SettingsView(ctk.CTkFrame):
         eula_link.pack(side="left", padx=10)
         eula_link.bind("<Button-1>", lambda e: webbrowser.open("https://www.minecraft.net/eula"))
         
-        # Server Properties 預設設定
-        ctk.CTkLabel(self, text="新伺服器預設設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=6, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
+        ctk.CTkLabel(self, text="新伺服器預設設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=8, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
         
-        # 第一行：連接埠和玩家數
         props_frame1 = ctk.CTkFrame(self, fg_color="transparent")
-        props_frame1.grid(row=7, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
+        props_frame1.grid(row=9, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         props_frame1.grid_columnconfigure((1, 3), weight=1)
         
         ctk.CTkLabel(props_frame1, text="預設連接埠:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
@@ -862,9 +900,8 @@ class SettingsView(ctk.CTkFrame):
         self.default_players_var = ctk.StringVar(value="20")
         ctk.CTkEntry(props_frame1, textvariable=self.default_players_var, width=100, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=3, pady=5, sticky="w")
         
-        # 第二行：模式選項
         props_frame2 = ctk.CTkFrame(self, fg_color="transparent")
-        props_frame2.grid(row=8, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
+        props_frame2.grid(row=10, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         props_frame2.grid_columnconfigure((1, 3), weight=1)
         
         ctk.CTkLabel(props_frame2, text="預設遊戲難度:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
@@ -877,9 +914,8 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkOptionMenu(props_frame2, variable=self.default_gamemode_var, values=["survival", "creative", "adventure", "spectator"],
                          width=120, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=3, pady=5, sticky="w")
         
-        # 第三行：開關選項
         props_frame3 = ctk.CTkFrame(self, fg_color="transparent")
-        props_frame3.grid(row=9, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
+        props_frame3.grid(row=11, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         
         self.default_online_mode_var = ctk.BooleanVar(value=True)
         ctk.CTkSwitch(props_frame3, text="預設啟用正版驗證", variable=self.default_online_mode_var,
@@ -890,29 +926,29 @@ class SettingsView(ctk.CTkFrame):
                      font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left")
         
         ctk.CTkButton(self, text="💾 儲存設定", command=self.save_all_settings,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=10, column=1, columnspan=2, padx=20, pady=20, sticky="e")
+                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=12, column=1, columnspan=2, padx=20, pady=20, sticky="e")
         self.load_and_display_settings()
 
+    def change_mode(self, mode_chinese: str):
+        mode_map = {"淺色": "light", "深色": "dark", "系統": "system"}
+        ctk.set_appearance_mode(mode_map.get(mode_chinese, "system"))
+
     def update_ram_labels(self, _=None):
-        # 确保值是256的倍数
         max_val = int(round(self.max_ram_slider.get() / 256) * 256)
         min_val = int(round(self.min_ram_slider.get() / 256) * 256)
         
-        # 确保最小值不超过最大值
         if min_val > max_val: 
             min_val = max_val
             self.min_ram_slider.set(min_val)
         
-        # 更新最小值滑块的范围
         self.min_ram_slider.configure(to=max_val, number_of_steps=(max_val - 512) // 256 if max_val > 512 else 1)
         
-        # 更新标签显示
         self.max_ram_label.configure(text=f"{max_val} MB")
         self.min_ram_label.configure(text=f"{min_val} MB")
 
     def load_and_display_settings(self):
         self.settings = load_settings()
-        # Handle backward compatibility for GB to MB conversion
+        
         if 'max_ram_gb' in self.settings:
             self.settings['max_ram_mb'] = self.settings.get('max_ram_gb', 2) * 1024
             self.settings['min_ram_mb'] = self.settings.get('min_ram_gb', 1) * 1024
@@ -920,17 +956,26 @@ class SettingsView(ctk.CTkFrame):
             del self.settings['min_ram_gb']
             save_settings(self.settings)
         
-        # 加载内存设置
+        mode_map_rev = {"light": "淺色", "dark": "深色", "system": "系統"}
+        current_mode = self.settings.get('appearance_mode', 'system').lower()
+        self.mode_var.set(mode_map_rev.get(current_mode, "系統"))
+
+        saved_theme = self.settings.get('theme', 'blue')
+        if saved_theme in self.themes:
+            self.theme_var.set(saved_theme)
+        elif self.themes != "(找不到主題)":
+            self.theme_var.set(self.themes)
+        
+        self.initial_theme = self.theme_var.get() # 載入時記錄當前主題
+
         self.max_ram_slider.set(self.settings.get('max_ram_mb', 2048))
         self.min_ram_slider.set(self.settings.get('min_ram_mb', 1024))
         self.update_ram_labels()
         
-        # 加载应用设置
         self.java_switch_var.set(self.settings.get('auto_download_java', False))
         self.gui_switch_var.set(self.settings.get('use_server_gui', False))
         self.eula_switch_var.set(self.settings.get('auto_accept_eula', True))
         
-        # 加载server.properties预设值
         self.default_port_var.set(self.settings.get('default_server_port', '25565'))
         self.default_players_var.set(self.settings.get('default_max_players', '20'))
         self.default_difficulty_var.set(self.settings.get('default_difficulty', 'easy'))
@@ -939,16 +984,19 @@ class SettingsView(ctk.CTkFrame):
         self.default_pvp_var.set(self.settings.get('default_pvp', True))
     
     def save_all_settings(self):
-        # 确保保存的值是256的倍数
+        new_theme = self.theme_var.get()
+
+        mode_map = {"淺色": "light", "深色": "dark", "系統": "system"}
+        self.settings['appearance_mode'] = mode_map.get(self.mode_var.get(), "system")
+        self.settings['theme'] = new_theme
+        
         self.settings['max_ram_mb'] = int(round(self.max_ram_slider.get() / 256) * 256)
         self.settings['min_ram_mb'] = int(round(self.min_ram_slider.get() / 256) * 256)
         
-        # 保存应用设置
         self.settings['auto_download_java'] = self.java_switch_var.get()
         self.settings['use_server_gui'] = self.gui_switch_var.get()
         self.settings['auto_accept_eula'] = self.eula_switch_var.get()
         
-        # 保存server.properties预设值
         self.settings['default_server_port'] = self.default_port_var.get()
         self.settings['default_max_players'] = self.default_players_var.get()
         self.settings['default_difficulty'] = self.default_difficulty_var.get()
@@ -957,7 +1005,13 @@ class SettingsView(ctk.CTkFrame):
         self.settings['default_pvp'] = self.default_pvp_var.get()
         
         save_settings(self.settings)
-        messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b")
+
+        # 檢查主題是否已變更，並給予相應提示
+        if self.initial_theme != new_theme:
+            messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b\n\n新的主題將在您下次啟動應用程式時生效。")
+            self.initial_theme = new_theme # 更新初始主題，避免重複提示
+        else:
+            messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b")
 
 # --- About Page Interface ---
 class AboutView(ctk.CTkFrame):
@@ -981,7 +1035,7 @@ class AboutView(ctk.CTkFrame):
         app_title.grid(row=0, column=1, sticky="ew")
         
         # Updated version and build date
-        version_label = ctk.CTkLabel(header_frame, text="版本: 0.2.2-beta (hotfix，構建於2025/11/5)", 
+        version_label = ctk.CTkLabel(header_frame, text="版本: v0.3.0-beta (構建於2025/11/6)", 
                                    font=ctk.CTkFont(size=14), anchor="w", text_color="gray")
         version_label.grid(row=1, column=1, sticky="ew")
 
@@ -1042,6 +1096,10 @@ class AboutView(ctk.CTkFrame):
         changelog_title.pack(padx=20, pady=(10, 5), anchor="w")
 
         changelog_content = (
+            "v0.3.0-beta- 2025/11/5\n"
+            "-------------------------------------\n"
+            "• [新增功能] 新增主題和深淺色模式調整。\n"
+            "---------------------------------------------------------\n"
             "v0.2.2-beta (hotfix) - 2025/11/5\n"
             "-------------------------------------\n"
             "• [修正] 修正了一個備份機制的嚴重錯誤。該錯誤會導致備份功能將先前的備份檔重複打包，造成備份檔案大小無限增長的問題。"
@@ -1063,7 +1121,7 @@ class AboutView(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Minecraft Server Management Tool v0.2.2-beta")
+        self.title("Minecraft Server Management Tool v0.3.0-beta")
         self.geometry("900x700")  # Expanded to accommodate new about section
         
         ctk.set_appearance_mode("System")
@@ -1090,5 +1148,24 @@ class App(ctk.CTk):
         self.about_frame.pack(fill="both", expand=True)
 
 if __name__ == "__main__":
+    # 在 App 啟動前，先載入設定並套用外觀
+    settings = load_settings()
+    
+    # 套用顏色模式 (深色/淺色/系統)
+    ctk.set_appearance_mode(settings.get('appearance_mode', 'system'))
+    
+    # 套用主題
+    THEMES_DIR = os.path.join(BUNDLE_DIR, 'themes')
+    theme_name = settings.get('theme', 'blue')
+    theme_path = os.path.join(THEMES_DIR, f"{theme_name}.json")
+    
+    # 確保主題檔案存在，若不存在則使用預設值，避免程式崩潰
+    if os.path.exists(theme_path):
+        ctk.set_default_color_theme(theme_path)
+    else:
+        # 如果找不到指定主題，就退回使用 customtkinter 內建的 blue 主題
+        print(f"警告：找不到主題檔案 '{theme_path}'，將使用預設主題。")
+        ctk.set_default_color_theme("blue")
+
     app = App()
     app.mainloop()
