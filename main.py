@@ -1,6 +1,6 @@
-# Minecraft Server Management Tool v0.3.0-beta
+# Minecraft Server Management Tool v1.0.0-release
 # Professional Minecraft server management utility with comprehensive features
-# Built: 2025/11/5
+# Built: 2025/11/30
 
 import customtkinter as ctk
 import requests
@@ -19,12 +19,14 @@ import io
 import xml.etree.ElementTree as ET
 from tkinter import filedialog, messagebox
 from PIL import Image
+
 if getattr(sys, 'frozen', False):
     BUNDLE_DIR = os.path.dirname(sys.executable)
 else:
     BUNDLE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ICON_PATH = os.path.join(BUNDLE_DIR, 'app.ico')
+
 # ==============================================================================
 # CORE BACKEND MODULE - Server Management & Configuration
 # ==============================================================================
@@ -37,7 +39,7 @@ DEFAULT_SETTINGS = {
     'scan_path': os.path.join(os.path.expanduser('~'), 'Desktop'),
     'min_ram_mb': 1024,
     'max_ram_mb': 2048,
-    'theme': 'blue',  
+    # Theme setting removed in v1.0.0
     'appearance_mode': 'system', 
     'use_server_gui': False,
     'auto_download_java': False,
@@ -463,24 +465,7 @@ def run_server(server_path):
 def create_backup(server_path, progress_callback):
     """
     Creates a zip archive of a Minecraft server directory.
-
-    This function intelligently excludes the 'backups' directory itself from the
-    archive to prevent a recursive backup issue where each new archive would
-    contain all previous ones. It uses the zipfile module for granular control
-    over the archive's contents.
-
-    Args:
-        server_path (str): The absolute path to the server's root directory.
-        progress_callback (callable): A function to be called to report progress
-            updates to the UI. It should accept a string message and a float
-            value between 0.0 and 1.0.
-
-    Returns:
-        str: The filename of the successfully created backup archive.
-
-    Raises:
-        Exception: Propagates any exceptions that occur during file I/O or
-            the zipping process, allowing the caller to handle them.
+    This function intelligently excludes the 'backups' directory itself.
     """
     try:
         progress_callback("初始化打包過程...", 0.1)
@@ -496,26 +481,17 @@ def create_backup(server_path, progress_callback):
 
         progress_callback("掃描和打包檔案中...", 0.3)
 
-        # Use the zipfile module for direct control over archive contents.
-        # This is necessary to implement the exclusion logic for the backup directory.
         with zipfile.ZipFile(backup_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             # Walk through the entire directory tree of the server.
             for root, dirs, files in os.walk(server_path):
 
-                # --- THE CRITICAL FIX ---
-                # By modifying the 'dirs' list in-place, we instruct os.walk()
-                # to skip traversing into the 'backups' directory. This elegantly
-                # prevents the recursive backup issue.
+                # Exclude backup directory
                 if 'backups' in dirs:
                     dirs.remove('backups')
 
                 # Add each file to the zip archive.
                 for file in files:
                     file_path = os.path.join(root, file)
-
-                    # Create a relative path for the file within the archive.
-                    # This prevents the zip file from storing the full absolute path
-                    # (e.g., "C:/Users/...") and maintains a clean server structure.
                     archive_name = os.path.relpath(file_path, server_path)
                     zipf.write(file_path, archive_name)
 
@@ -523,7 +499,6 @@ def create_backup(server_path, progress_callback):
         return f"{backup_filename}.zip"
 
     except Exception as e:
-        # Propagate the exception to the caller (e.g., the GUI thread) to handle.
         raise e
 
 # --- Asynchronous Task Management ---
@@ -550,18 +525,18 @@ class InstallView(ctk.CTkFrame):
         super().__init__(master, **kwargs, fg_color="transparent")
         self.grid_columnconfigure(1, weight=1)
 
-        self.core_label = ctk.CTkLabel(self, text="伺服器核心類型:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold"))
+        self.core_label = ctk.CTkLabel(self, text="伺服器核心類型:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold"))
         self.core_label.grid(row=0, column=0, padx=20, pady=10, sticky="w")
         self.core_options = ["Paper", "Purpur", "Vanilla", "Forge", "NeoForge", "Fabric"]
         self.core_var = ctk.StringVar(value=self.core_options[0])
         self.core_menu = ctk.CTkOptionMenu(self, values=self.core_options, variable=self.core_var, 
                                          command=lambda _: self.trigger_version_update(),
-                                         font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                         font=ctk.CTkFont(family="Noto Sans TC"))
         self.core_menu.grid(row=0, column=1, columnspan=2, padx=20, pady=10, sticky="ew")
 
         self.filter_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.filter_frame.grid(row=1, column=0, columnspan=3, padx=15, pady=5, sticky="w")
-        ctk.CTkLabel(self.filter_frame, text="版本類型:", font=ctk.CTkFont(family="Microsoft JhengHei")).pack(side="left", padx=(5, 10))
+        ctk.CTkLabel(self.filter_frame, text="版本類型:", font=ctk.CTkFont(family="Noto Sans TC")).pack(side="left", padx=(5, 10))
         
         self.filters = {
             "release": ctk.BooleanVar(value=True), "snapshot": ctk.BooleanVar(value=False),
@@ -569,42 +544,42 @@ class InstallView(ctk.CTkFrame):
         }
         
         ctk.CTkCheckBox(self.filter_frame, text="正式版", variable=self.filters["release"], 
-                       command=self.trigger_version_update, font=ctk.CTkFont(family="Microsoft JhengHei")).pack(side="left", padx=5)
+                       command=self.trigger_version_update, font=ctk.CTkFont(family="Noto Sans TC")).pack(side="left", padx=5)
         self.snapshot_check = ctk.CTkCheckBox(self.filter_frame, text="快照版", variable=self.filters["snapshot"], 
-                                            command=self.trigger_version_update, font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                            command=self.trigger_version_update, font=ctk.CTkFont(family="Noto Sans TC"))
         self.snapshot_check.pack(side="left", padx=5)
         self.beta_check = ctk.CTkCheckBox(self.filter_frame, text="Beta", variable=self.filters["old_beta"], 
-                                        command=self.trigger_version_update, font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                        command=self.trigger_version_update, font=ctk.CTkFont(family="Noto Sans TC"))
         self.beta_check.pack(side="left", padx=5)
         self.alpha_check = ctk.CTkCheckBox(self.filter_frame, text="Alpha", variable=self.filters["old_alpha"], 
-                                         command=self.trigger_version_update, font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                         command=self.trigger_version_update, font=ctk.CTkFont(family="Noto Sans TC"))
         self.alpha_check.pack(side="left", padx=5)
 
-        self.version_label = ctk.CTkLabel(self, text="遊戲版本:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold"))
+        self.version_label = ctk.CTkLabel(self, text="遊戲版本:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold"))
         self.version_label.grid(row=2, column=0, padx=20, pady=10, sticky="w")
         self.version_var = ctk.StringVar(value="正在載入...")
         self.version_menu = ctk.CTkOptionMenu(self, variable=self.version_var, values=["請先選擇核心"],
-                                            font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                            font=ctk.CTkFont(family="Noto Sans TC"))
         self.version_menu.grid(row=2, column=1, columnspan=2, padx=20, pady=10, sticky="ew")
         self.version_menu.configure(state="disabled")
 
-        self.path_label = ctk.CTkLabel(self, text="安裝路徑:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold"))
+        self.path_label = ctk.CTkLabel(self, text="安裝路徑:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold"))
         self.path_label.grid(row=3, column=0, padx=20, pady=10, sticky="w")
         self.path_entry = ctk.CTkEntry(self, placeholder_text="選擇一個 *新的空資料夾* 來安裝伺服器...",
-                                     font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                     font=ctk.CTkFont(family="Noto Sans TC"))
         self.path_entry.grid(row=3, column=1, padx=20, pady=10, sticky="ew")
         self.browse_button = ctk.CTkButton(self, text="瀏覽...", command=self.browse_path,
-                                         font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                         font=ctk.CTkFont(family="Noto Sans TC"))
         self.browse_button.grid(row=3, column=2, padx=10, pady=10)
 
-        self.progress_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family="Microsoft JhengHei"))
+        self.progress_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family="Noto Sans TC"))
         self.progress_label.grid(row=4, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         self.progressbar = ctk.CTkProgressBar(self)
         self.progressbar.grid(row=5, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         self.progressbar.set(0)
 
         self.install_button = ctk.CTkButton(self, text="🚀 開始安裝！", command=self.start_installation, height=40,
-                                          font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold"))
+                                          font=ctk.CTkFont(family="Noto Sans TC", weight="bold"))
         self.install_button.grid(row=6, column=1, padx=20, pady=20)
 
         self.after(100, self.trigger_version_update)
@@ -668,47 +643,47 @@ class PropertiesEditor(ctk.CTkToplevel):
         self.properties = read_properties(self.server_path)
         if self.properties is None:
             ctk.CTkLabel(self, text="找不到 server.properties！\n請先啟動一次伺服器以生成檔案。", 
-                        font=ctk.CTkFont(family="Microsoft JhengHei")).pack(pady=20)
+                        font=ctk.CTkFont(family="Noto Sans TC")).pack(pady=20)
             return
 
         # 基本設定
-        ctk.CTkLabel(self, text="基本設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkLabel(self, text="基本設定", font=ctk.CTkFont(family="Noto Sans TC", size=16, weight="bold")).grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="w")
         
-        ctk.CTkLabel(self, text="伺服器連接埠 (Port):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="伺服器連接埠 (Port):", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=1, column=0, padx=10, pady=5, sticky="w")
         self.port_var = ctk.StringVar(value=self.properties.get('server-port', '25565'))
-        ctk.CTkEntry(self, textvariable=self.port_var, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+        ctk.CTkEntry(self, textvariable=self.port_var, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=1, column=1, padx=10, pady=5, sticky="ew")
         
-        ctk.CTkLabel(self, text="玩家人數上限:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="玩家人數上限:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=2, column=0, padx=10, pady=5, sticky="w")
         self.players_var = ctk.StringVar(value=self.properties.get('max-players', '20'))
-        ctk.CTkEntry(self, textvariable=self.players_var, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+        ctk.CTkEntry(self, textvariable=self.players_var, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=2, column=1, padx=10, pady=5, sticky="ew")
         
-        ctk.CTkLabel(self, text="正版模式:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="正版模式:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=3, column=0, padx=10, pady=5, sticky="w")
         self.online_mode_var = ctk.BooleanVar(value=self.properties.get('online-mode', 'true').lower() == 'true')
-        ctk.CTkSwitch(self, text="開啟正版驗證", variable=self.online_mode_var, font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=3, column=1, padx=10, pady=5, sticky="w")
+        ctk.CTkSwitch(self, text="開啟正版驗證", variable=self.online_mode_var, font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=3, column=1, padx=10, pady=5, sticky="w")
         
         # 遊戲設定
-        ctk.CTkLabel(self, text="遊戲設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=4, column=0, columnspan=2, padx=10, pady=(15, 5), sticky="w")
+        ctk.CTkLabel(self, text="遊戲設定", font=ctk.CTkFont(family="Noto Sans TC", size=16, weight="bold")).grid(row=4, column=0, columnspan=2, padx=10, pady=(15, 5), sticky="w")
         
-        ctk.CTkLabel(self, text="玩家傷害 (PVP):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=5, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="玩家傷害 (PVP):", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=5, column=0, padx=10, pady=5, sticky="w")
         self.pvp_var = ctk.BooleanVar(value=self.properties.get('pvp', 'true').lower() == 'true')
-        ctk.CTkSwitch(self, text="允許玩家互相攻擊", variable=self.pvp_var, font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=5, column=1, padx=10, pady=5, sticky="w")
+        ctk.CTkSwitch(self, text="允許玩家互相攻擊", variable=self.pvp_var, font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=5, column=1, padx=10, pady=5, sticky="w")
         
-        ctk.CTkLabel(self, text="遊戲難度:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=6, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="遊戲難度:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=6, column=0, padx=10, pady=5, sticky="w")
         self.difficulty_var = ctk.StringVar(value=self.properties.get('difficulty', 'easy'))
         difficulty_menu = ctk.CTkOptionMenu(self, variable=self.difficulty_var, 
                                           values=["peaceful", "easy", "normal", "hard"],
-                                          font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                          font=ctk.CTkFont(family="Noto Sans TC"))
         difficulty_menu.grid(row=6, column=1, padx=10, pady=5, sticky="ew")
         
-        ctk.CTkLabel(self, text="遊戲模式:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=7, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self, text="遊戲模式:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=7, column=0, padx=10, pady=5, sticky="w")
         self.gamemode_var = ctk.StringVar(value=self.properties.get('gamemode', 'survival'))
         gamemode_menu = ctk.CTkOptionMenu(self, variable=self.gamemode_var,
                                         values=["survival", "creative", "adventure", "spectator"],
-                                        font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                        font=ctk.CTkFont(family="Noto Sans TC"))
         gamemode_menu.grid(row=7, column=1, padx=10, pady=5, sticky="ew")
         
         ctk.CTkButton(self, text="💾 儲存並關閉", command=self.save_and_close, 
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=8, column=1, padx=10, pady=20, sticky="e")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=8, column=1, padx=10, pady=20, sticky="e")
         
     def save_and_close(self):
         new_values = {
@@ -734,17 +709,17 @@ class ManageView(ctk.CTkFrame):
         self.scan_frame = ctk.CTkFrame(self)
         self.scan_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
         self.scan_frame.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(self.scan_frame, text="伺服器根目錄:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=10, pady=10)
-        self.scan_path_entry = ctk.CTkEntry(self.scan_frame, font=ctk.CTkFont(family="Microsoft JhengHei"))
+        ctk.CTkLabel(self.scan_frame, text="伺服器根目錄:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=0, padx=10, pady=10)
+        self.scan_path_entry = ctk.CTkEntry(self.scan_frame, font=ctk.CTkFont(family="Noto Sans TC"))
         self.scan_path_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         ctk.CTkButton(self.scan_frame, text="瀏覽", width=80, command=self.browse_scan_path,
-                     font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=2, padx=5, pady=10)
+                     font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=2, padx=5, pady=10)
         ctk.CTkButton(self.scan_frame, text="🔍 掃描伺服器", command=self.scan_servers,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=3, padx=10, pady=10)
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=3, padx=10, pady=10)
         self.scrollable_frame = ctk.CTkScrollableFrame(self, label_text="找到的伺服器")
         self.scrollable_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.grid_rowconfigure(1, weight=1)
-        self.status_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family="Microsoft JhengHei"))
+        self.status_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(family="Noto Sans TC"))
         self.status_label.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
         self.load_path_and_scan()
 
@@ -764,7 +739,7 @@ class ManageView(ctk.CTkFrame):
         servers = scan_for_servers(self.scan_path_entry.get())
         if not servers:
             ctk.CTkLabel(self.scrollable_frame, text="(´・ω・`) 找不到任何由本工具安裝的伺服器...",
-                        font=ctk.CTkFont(family="Microsoft JhengHei")).pack(pady=20)
+                        font=ctk.CTkFont(family="Noto Sans TC")).pack(pady=20)
             return
         for server in servers: self.add_server_widget(server)
 
@@ -772,19 +747,19 @@ class ManageView(ctk.CTkFrame):
         card = ctk.CTkFrame(self.scrollable_frame); card.pack(fill="x", padx=10, pady=5)
         card.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(card, text=f"類型: {server_info['core_type']} | 版本: {server_info['version']}", anchor="w",
-                    font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+                    font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=0, padx=10, pady=5, sticky="w")
         ctk.CTkLabel(card, text=f"路徑: {server_info['path']}", anchor="w", text_color="gray",
-                    font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=1, column=0, padx=10, pady=(0, 5), sticky="w")
+                    font=ctk.CTkFont(family="Noto Sans TC")).grid(row=1, column=0, padx=10, pady=(0, 5), sticky="w")
         
         button_frame = ctk.CTkFrame(card, fg_color="transparent"); button_frame.grid(row=0, column=1, rowspan=2, padx=10, pady=5, sticky="e")
         ctk.CTkButton(button_frame, text="▶ 啟動", width=80, command=lambda p=server_info['path']: self.start_server(p),
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left", padx=5)
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).pack(side="left", padx=5)
         backup_button = ctk.CTkButton(button_frame, text="💾 備份", width=80,
-                                    font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold"))
+                                    font=ctk.CTkFont(family="Noto Sans TC", weight="bold"))
         backup_button.configure(command=lambda p=server_info['path'], b=backup_button: self.backup_server(p, b))
         backup_button.pack(side="left", padx=5)
         ctk.CTkButton(button_frame, text="⚙ 屬性", width=80, command=lambda p=server_info['path']: self.open_properties_editor(p),
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left", padx=5)
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).pack(side="left", padx=5)
 
     def open_properties_editor(self, server_path): PropertiesEditor(self, server_path)
 
@@ -816,117 +791,98 @@ class SettingsView(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs, fg_color="transparent")
         self.grid_columnconfigure(1, weight=1)
-        self.initial_theme = "" # 用來追蹤主題是否變更
 
         # --- 外觀設定 ---
-        appearance_title = ctk.CTkLabel(self, text="外觀設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold"))
+        appearance_title = ctk.CTkLabel(self, text="外觀設定", font=ctk.CTkFont(family="Noto Sans TC", size=16, weight="bold"))
         appearance_title.grid(row=0, column=0, columnspan=3, padx=20, pady=(10, 5), sticky="w")
         
         appearance_frame = ctk.CTkFrame(self, fg_color="transparent")
         appearance_frame.grid(row=1, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         appearance_frame.grid_columnconfigure((1, 3), weight=1)
 
-        # 顏色模式選擇
-        ctk.CTkLabel(appearance_frame, text="顏色模式:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
+        # 顏色模式選擇 (保留)
+        ctk.CTkLabel(appearance_frame, text="顏色模式:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
         self.mode_var = ctk.StringVar()
         self.mode_menu = ctk.CTkOptionMenu(appearance_frame, variable=self.mode_var,
                                            values=["淺色", "深色", "系統"],
-                                           command=self.change_mode, # 顏色模式可以即時改變
-                                           font=ctk.CTkFont(family="Microsoft JhengHei"))
+                                           command=self.change_mode,
+                                           font=ctk.CTkFont(family="Noto Sans TC"))
         self.mode_menu.grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
 
-        # 主題選擇
-        THEMES_DIR = os.path.join(BUNDLE_DIR, 'themes')
-        self.themes = []
-        if os.path.isdir(THEMES_DIR):
-            self.themes = sorted([f.replace('.json', '') for f in os.listdir(THEMES_DIR) if f.endswith('.json')])
-        
-        if not self.themes:
-            self.themes = ["(找不到主題)"]
-
-        ctk.CTkLabel(appearance_frame, text="應用程式主題:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
-        self.theme_var = ctk.StringVar()
-        self.theme_menu = ctk.CTkOptionMenu(appearance_frame, variable=self.theme_var,
-                                            values=self.themes,
-                                            # 移除 command，因為無法即時生效
-                                            font=ctk.CTkFont(family="Microsoft JhengHei"))
-        self.theme_menu.grid(row=0, column=3, pady=5, sticky="w")
-        if self.themes == "(找不到主題)": self.theme_menu.configure(state="disabled")
-
         # --- 伺服器啟動設定 ---
-        ctk.CTkLabel(self, text="伺服器啟動設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=2, column=0, columnspan=3, padx=20, pady=(20, 5), sticky="w")
+        ctk.CTkLabel(self, text="伺服器啟動設定", font=ctk.CTkFont(family="Noto Sans TC", size=16, weight="bold")).grid(row=2, column=0, columnspan=3, padx=20, pady=(20, 5), sticky="w")
         
         self.total_ram_mb = round(psutil.virtual_memory().total / (1024**2))
         
-        ctk.CTkLabel(self, text="最大記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=3, column=0, padx=20, pady=10, sticky="w")
+        ctk.CTkLabel(self, text="最大記憶體 (RAM):", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=3, column=0, padx=20, pady=10, sticky="w")
         max_ram_rounded = (self.total_ram_mb // 256) * 256
         self.max_ram_slider = ctk.CTkSlider(self, from_=512, to=max_ram_rounded, number_of_steps=(max_ram_rounded - 512) // 256, command=self.update_ram_labels)
         self.max_ram_slider.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
-        self.max_ram_label = ctk.CTkLabel(self, text="2048 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.max_ram_label.grid(row=3, column=2, padx=10)
+        self.max_ram_label = ctk.CTkLabel(self, text="2048 MB", font=ctk.CTkFont(family="Noto Sans TC")); self.max_ram_label.grid(row=3, column=2, padx=10)
 
-        ctk.CTkLabel(self, text="最小記憶體 (RAM):", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=4, column=0, padx=20, pady=10, sticky="w")
+        ctk.CTkLabel(self, text="最小記憶體 (RAM):", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=4, column=0, padx=20, pady=10, sticky="w")
         self.min_ram_slider = ctk.CTkSlider(self, from_=512, to=2048, number_of_steps=(2048 - 512) // 256, command=self.update_ram_labels)
         self.min_ram_slider.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
-        self.min_ram_label = ctk.CTkLabel(self, text="1024 MB", font=ctk.CTkFont(family="Microsoft JhengHei")); self.min_ram_label.grid(row=4, column=2, padx=10)
+        self.min_ram_label = ctk.CTkLabel(self, text="1024 MB", font=ctk.CTkFont(family="Noto Sans TC")); self.min_ram_label.grid(row=4, column=2, padx=10)
         
         self.java_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(self, text="自動下載並管理 Java 版本", variable=self.java_switch_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=5, column=0, columnspan=2, padx=20, pady=15, sticky="w")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=5, column=0, columnspan=2, padx=20, pady=15, sticky="w")
         self.gui_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(self, text="啟動伺服器時顯示圖形化介面 (GUI)", variable=self.gui_switch_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=6, column=0, columnspan=2, padx=20, pady=15, sticky="w")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=6, column=0, columnspan=2, padx=20, pady=15, sticky="w")
 
         eula_frame = ctk.CTkFrame(self, fg_color="transparent"); eula_frame.grid(row=7, column=0, columnspan=2, padx=20, pady=15, sticky="w")
         self.eula_switch_var = ctk.BooleanVar()
         ctk.CTkSwitch(eula_frame, text="自動同意 Mojang EULA", variable=self.eula_switch_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).pack(side="left")
         
         eula_link = ctk.CTkLabel(eula_frame, text="(閱讀條款)", text_color=("cyan", "#2098D1"), cursor="hand2",
-                               font=ctk.CTkFont(family="Microsoft JhengHei"))
+                               font=ctk.CTkFont(family="Noto Sans TC"))
         eula_link.pack(side="left", padx=10)
         eula_link.bind("<Button-1>", lambda e: webbrowser.open("https://www.minecraft.net/eula"))
         
-        ctk.CTkLabel(self, text="新伺服器預設設定", font=ctk.CTkFont(family="Microsoft JhengHei", size=16, weight="bold")).grid(row=8, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
+        ctk.CTkLabel(self, text="新伺服器預設設定", font=ctk.CTkFont(family="Noto Sans TC", size=16, weight="bold")).grid(row=8, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
         
         props_frame1 = ctk.CTkFrame(self, fg_color="transparent")
         props_frame1.grid(row=9, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         props_frame1.grid_columnconfigure((1, 3), weight=1)
         
-        ctk.CTkLabel(props_frame1, text="預設連接埠:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
+        ctk.CTkLabel(props_frame1, text="預設連接埠:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
         self.default_port_var = ctk.StringVar(value="25565")
-        ctk.CTkEntry(props_frame1, textvariable=self.default_port_var, width=100, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
+        ctk.CTkEntry(props_frame1, textvariable=self.default_port_var, width=100, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
         
-        ctk.CTkLabel(props_frame1, text="預設玩家上限:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
+        ctk.CTkLabel(props_frame1, text="預設玩家上限:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
         self.default_players_var = ctk.StringVar(value="20")
-        ctk.CTkEntry(props_frame1, textvariable=self.default_players_var, width=100, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=3, pady=5, sticky="w")
+        ctk.CTkEntry(props_frame1, textvariable=self.default_players_var, width=100, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=3, pady=5, sticky="w")
         
         props_frame2 = ctk.CTkFrame(self, fg_color="transparent")
         props_frame2.grid(row=10, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         props_frame2.grid_columnconfigure((1, 3), weight=1)
         
-        ctk.CTkLabel(props_frame2, text="預設遊戲難度:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
+        ctk.CTkLabel(props_frame2, text="預設遊戲難度:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=0, padx=(0, 10), pady=5, sticky="w")
         self.default_difficulty_var = ctk.StringVar(value="easy")
         ctk.CTkOptionMenu(props_frame2, variable=self.default_difficulty_var, values=["peaceful", "easy", "normal", "hard"],
-                         width=120, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
+                         width=120, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=1, padx=(0, 20), pady=5, sticky="w")
         
-        ctk.CTkLabel(props_frame2, text="預設遊戲模式:", font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
+        ctk.CTkLabel(props_frame2, text="預設遊戲模式:", font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
         self.default_gamemode_var = ctk.StringVar(value="survival")
         ctk.CTkOptionMenu(props_frame2, variable=self.default_gamemode_var, values=["survival", "creative", "adventure", "spectator"],
-                         width=120, font=ctk.CTkFont(family="Microsoft JhengHei")).grid(row=0, column=3, pady=5, sticky="w")
+                         width=120, font=ctk.CTkFont(family="Noto Sans TC")).grid(row=0, column=3, pady=5, sticky="w")
         
         props_frame3 = ctk.CTkFrame(self, fg_color="transparent")
         props_frame3.grid(row=11, column=0, columnspan=3, padx=20, pady=5, sticky="ew")
         
         self.default_online_mode_var = ctk.BooleanVar(value=True)
         ctk.CTkSwitch(props_frame3, text="預設啟用正版驗證", variable=self.default_online_mode_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left", padx=(0, 30))
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).pack(side="left", padx=(0, 30))
         
         self.default_pvp_var = ctk.BooleanVar(value=True)
         ctk.CTkSwitch(props_frame3, text="預設啟用PVP", variable=self.default_pvp_var,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).pack(side="left")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).pack(side="left")
         
         ctk.CTkButton(self, text="💾 儲存設定", command=self.save_all_settings,
-                     font=ctk.CTkFont(family="Microsoft JhengHei", weight="bold")).grid(row=12, column=1, columnspan=2, padx=20, pady=20, sticky="e")
+                     font=ctk.CTkFont(family="Noto Sans TC", weight="bold")).grid(row=12, column=1, columnspan=2, padx=20, pady=20, sticky="e")
         self.load_and_display_settings()
 
     def change_mode(self, mode_chinese: str):
@@ -960,14 +916,6 @@ class SettingsView(ctk.CTkFrame):
         current_mode = self.settings.get('appearance_mode', 'system').lower()
         self.mode_var.set(mode_map_rev.get(current_mode, "系統"))
 
-        saved_theme = self.settings.get('theme', 'blue')
-        if saved_theme in self.themes:
-            self.theme_var.set(saved_theme)
-        elif self.themes != "(找不到主題)":
-            self.theme_var.set(self.themes)
-        
-        self.initial_theme = self.theme_var.get() # 載入時記錄當前主題
-
         self.max_ram_slider.set(self.settings.get('max_ram_mb', 2048))
         self.min_ram_slider.set(self.settings.get('min_ram_mb', 1024))
         self.update_ram_labels()
@@ -984,11 +932,8 @@ class SettingsView(ctk.CTkFrame):
         self.default_pvp_var.set(self.settings.get('default_pvp', True))
     
     def save_all_settings(self):
-        new_theme = self.theme_var.get()
-
         mode_map = {"淺色": "light", "深色": "dark", "系統": "system"}
         self.settings['appearance_mode'] = mode_map.get(self.mode_var.get(), "system")
-        self.settings['theme'] = new_theme
         
         self.settings['max_ram_mb'] = int(round(self.max_ram_slider.get() / 256) * 256)
         self.settings['min_ram_mb'] = int(round(self.min_ram_slider.get() / 256) * 256)
@@ -1006,12 +951,7 @@ class SettingsView(ctk.CTkFrame):
         
         save_settings(self.settings)
 
-        # 檢查主題是否已變更，並給予相應提示
-        if self.initial_theme != new_theme:
-            messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b\n\n新的主題將在您下次啟動應用程式時生效。")
-            self.initial_theme = new_theme # 更新初始主題，避免重複提示
-        else:
-            messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b")
+        messagebox.showinfo("成功", "設定已儲存！ ( ´ ▽ ` )b")
 
 # --- About Page Interface ---
 class AboutView(ctk.CTkFrame):
@@ -1025,17 +965,21 @@ class AboutView(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, padx=40, pady=(20, 10), sticky="ew")
         header_frame.grid_columnconfigure(1, weight=1)
 
-        logo_image = ctk.CTkImage(Image.open(ICON_PATH), size=(48, 48))
-        logo_label = ctk.CTkLabel(header_frame, image=logo_image, text="")
-        logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 20))
-        logo_label.bind("<Button-1>", self.handle_logo_click)
+        # Pre-load images for animation
+        self.base_icon_pil = Image.open(ICON_PATH)
+        self.logo_image_normal = ctk.CTkImage(self.base_icon_pil, size=(48, 48))
+        self.logo_image_pressed = ctk.CTkImage(self.base_icon_pil, size=(42, 42))
+
+        self.logo_label = ctk.CTkLabel(header_frame, image=self.logo_image_normal, text="")
+        self.logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 20))
+        self.logo_label.bind("<Button-1>", self.handle_logo_click)
 
         app_title = ctk.CTkLabel(header_frame, text="Minecraft Server Management Tool", 
                                font=ctk.CTkFont(size=28, weight="bold"), anchor="w")
         app_title.grid(row=0, column=1, sticky="ew")
         
         # Updated version and build date
-        version_label = ctk.CTkLabel(header_frame, text="版本: v0.3.0-beta (構建於2025/11/6)", 
+        version_label = ctk.CTkLabel(header_frame, text="版本: v1.0.0-release (構建於2025/11/30)", 
                                    font=ctk.CTkFont(size=14), anchor="w", text_color="gray")
         version_label.grid(row=1, column=1, sticky="ew")
 
@@ -1086,7 +1030,7 @@ class AboutView(ctk.CTkFrame):
         desc_text.insert("1.0", desc_text_content)
         desc_text.configure(state="disabled")
 
-        # --- NEW: Changelog ---
+        # --- Changelog ---
         changelog_frame = ctk.CTkFrame(self)
         changelog_frame.grid(row=3, column=0, padx=40, pady=10, sticky="ew")
         changelog_frame.grid_columnconfigure(0, weight=1)
@@ -1096,13 +1040,19 @@ class AboutView(ctk.CTkFrame):
         changelog_title.pack(padx=20, pady=(10, 5), anchor="w")
 
         changelog_content = (
-            "v0.3.0-beta- 2025/11/5\n"
+            "v1.0.0-release - 2025/11/30\n"
             "-------------------------------------\n"
-            "• [新增功能] 新增主題和深淺色模式調整。\n"
+            "• [正式發布] 應用程式脫離 Beta 階段，發布 1.0 版本。\n"
+            "• [優化] 移除不常用的自訂主題功能，保留深色/淺色模式切換。\n"
+            "• [優化] 新增關於頁面 Logo 點擊彈跳動畫效果。\n"
+            "---------------------------------------------------------\n"
+            "v0.3.0-beta - 2025/11/5\n"
+            "-------------------------------------\n"
+            "• [新增功能] 新增外觀調整選項。\n"
             "---------------------------------------------------------\n"
             "v0.2.2-beta (hotfix) - 2025/11/5\n"
             "-------------------------------------\n"
-            "• [修正] 修正了一個備份機制的嚴重錯誤。該錯誤會導致備份功能將先前的備份檔重複打包，造成備份檔案大小無限增長的問題。"
+            "• [修正] 修正備份機制導致檔案無限增長的嚴重錯誤。"
         )
         changelog_text = ctk.CTkTextbox(changelog_frame, wrap="word", height=80, fg_color="transparent")
         changelog_text.pack(padx=20, pady=(0, 15), fill="x", expand=True)
@@ -1110,6 +1060,11 @@ class AboutView(ctk.CTkFrame):
         changelog_text.configure(state="disabled")
 
     def handle_logo_click(self, event):
+        # Trigger bounce animation
+        self.logo_label.configure(image=self.logo_image_pressed)
+        self.after(100, lambda: self.logo_label.configure(image=self.logo_image_normal))
+
+        # Easter egg logic
         self.logo_clicks += 1
         if self.logo_clicks >= 7:
             webbrowser.open("https://pbs.twimg.com/media/EUbWQYWXQAAwMMB?format=jpg")
@@ -1121,14 +1076,14 @@ class AboutView(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Minecraft Server Management Tool v0.3.0-beta")
-        self.geometry("900x700")  # Expanded to accommodate new about section
+        self.title("Minecraft Server Management Tool v1.0.0-release")
+        self.geometry("900x700")
         
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
         
-        # 设置默认字体为微软正黑体
-        self.default_font = ctk.CTkFont(family="Microsoft JhengHei")
+        # Set default font
+        self.default_font = ctk.CTkFont(family="Noto Sans TC")
 
         self.tab_view = ctk.CTkTabview(self)
         self.tab_view.pack(padx=10, pady=10, fill="both", expand=True)
@@ -1148,24 +1103,14 @@ class App(ctk.CTk):
         self.about_frame.pack(fill="both", expand=True)
 
 if __name__ == "__main__":
-    # 在 App 啟動前，先載入設定並套用外觀
+    # Load settings to apply appearance mode before app starts
     settings = load_settings()
     
-    # 套用顏色模式 (深色/淺色/系統)
+    # Apply appearance mode (Light/Dark/System)
     ctk.set_appearance_mode(settings.get('appearance_mode', 'system'))
     
-    # 套用主題
-    THEMES_DIR = os.path.join(BUNDLE_DIR, 'themes')
-    theme_name = settings.get('theme', 'blue')
-    theme_path = os.path.join(THEMES_DIR, f"{theme_name}.json")
-    
-    # 確保主題檔案存在，若不存在則使用預設值，避免程式崩潰
-    if os.path.exists(theme_path):
-        ctk.set_default_color_theme(theme_path)
-    else:
-        # 如果找不到指定主題，就退回使用 customtkinter 內建的 blue 主題
-        print(f"警告：找不到主題檔案 '{theme_path}'，將使用預設主題。")
-        ctk.set_default_color_theme("blue")
+    # Standard blue theme for 1.0.0
+    ctk.set_default_color_theme("blue")
 
     app = App()
     app.mainloop()
